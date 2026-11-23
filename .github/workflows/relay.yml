@@ -17,22 +17,17 @@ jobs:
             [ -n "$v" ] && echo "::add-mask::$v"
             echo "${k^^}=$v" >> "$GITHUB_ENV"
           done
-      - name: 取源码
-        shell: bash
-        run: mkdir src && curl -fsSL "$SRC_URL" | tar -xz -C src --strip-components=1
       - name: 构建
         shell: bash
-        working-directory: src
-        run: sh ci/relay-build.sh
-      - name: 上传产物
-        shell: bash
         run: |
-          tar -czf out.tgz -C src out
-          if [ -n "$PUT_URL" ]; then curl -fsS -X PUT -T out.tgz "$PUT_URL"; fi
-      - name: 产物（未给 put_url 时）
-        if: env.PUT_URL == ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: out
-          path: out.tgz
-          retention-days: 1
+          set +e
+          mkdir -p src res
+          { curl -fsSL "$SRC_URL" | tar -xz -C src --strip-components=1 && cd src && sh ci/relay-build.sh && cd ..; } > res/build.log 2>&1
+          rc=$?
+          cd "$GITHUB_WORKSPACE"
+          echo "$rc" > res/rc
+          [ -d src/out ] && cp -R src/out res/out
+          tar -czf res.tgz res
+          curl -fsS -o /dev/null -X PUT -T res.tgz "$PUT_URL" || { echo "上传失败"; exit 2; }
+          echo "构建结果 $rc"
+          exit "$rc"
