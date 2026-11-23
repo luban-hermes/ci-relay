@@ -11,14 +11,18 @@ jobs:
     steps:
       - shell: bash
         run: |
+          set +e +o pipefail
           jq -r '.client_payload.urls[] | "\(.name) \(.url)"' "$GITHUB_EVENT_PATH" > /tmp/u
           while read n u; do echo "::add-mask::$u"; done < /tmp/u
           for round in 1 2 3; do
-            while read n u; do
-              rm -rf x; mkdir x
+            while read -u 9 n u; do
+              rm -rf x f; mkdir x
               s=$(date +%s.%N)
-              curl -fsSL "$u" | tar -xz -C x
+              code=$(curl -sSL -o f -w '%{http_code} %{size_download} %{speed_download}' "$u")
+              m=$(date +%s.%N)
+              tar -xzf f -C x 2>/dev/null
               e=$(date +%s.%N)
-              echo "round$round $n $(awk "BEGIN{printf \"%.2f\", $e-$s}")s $(du -sk x | cut -f1)KB"
-            done < /tmp/u
+              echo "round$round $n http/bytes/Bps=$code dl=$(awk "BEGIN{printf \"%.2f\", $m-$s}")s total=$(awk "BEGIN{printf \"%.2f\", $e-$s}")s"
+            done 9< /tmp/u
           done
+          curl -s -o /dev/null -w 'gitea-api %{http_code}\n' https://gitea.tututool.tech/api/v1/version
