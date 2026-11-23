@@ -1,0 +1,38 @@
+name: relay
+run-name: relay ${{ github.event.client_payload.id }}
+on:
+  repository_dispatch:
+    types: [build]
+permissions: {}
+jobs:
+  build:
+    runs-on: ${{ github.event.client_payload.os }}
+    timeout-minutes: 30
+    steps:
+      - name: 读取参数
+        shell: bash
+        run: |
+          for k in src_url put_url; do
+            v=$(jq -r ".client_payload.$k // empty" "$GITHUB_EVENT_PATH")
+            [ -n "$v" ] && echo "::add-mask::$v"
+            echo "${k^^}=$v" >> "$GITHUB_ENV"
+          done
+      - name: 取源码
+        shell: bash
+        run: mkdir src && curl -fsSL "$SRC_URL" | tar -xz -C src --strip-components=1
+      - name: 构建
+        shell: bash
+        working-directory: src
+        run: sh ci/relay-build.sh
+      - name: 上传产物
+        shell: bash
+        run: |
+          tar -czf out.tgz -C src out
+          if [ -n "$PUT_URL" ]; then curl -fsS -X PUT -T out.tgz "$PUT_URL"; fi
+      - name: 产物（未给 put_url 时）
+        if: env.PUT_URL == ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: out
+          path: out.tgz
+          retention-days: 1
