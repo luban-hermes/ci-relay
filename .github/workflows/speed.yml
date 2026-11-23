@@ -25,4 +25,11 @@ jobs:
               echo "round$round $n http/bytes/Bps=$code dl=$(awk "BEGIN{printf \"%.2f\", $m-$s}")s total=$(awk "BEGIN{printf \"%.2f\", $e-$s}")s"
             done 9< /tmp/u
           done
-          curl -s -o /dev/null -w 'gitea-api %{http_code}\n' https://gitea.tututool.tech/api/v1/version
+          A=https://gitea.tututool.tech/assets/js/index.BknsEH1f.js
+          for round in 1 2 3; do
+            s=$(date +%s.%N); n=0
+            for i in $(seq 23); do echo "url = \"$A\""; echo "output = /dev/null"; done > /tmp/k
+            curl -s -H 'Accept-Encoding: identity' -K /tmp/k -w '%{size_download}\n' > /tmp/sz
+            e=$(date +%s.%N)
+            echo "round$round gitea-asset23 bytes=$(awk '{t+=$1} END{print t}' /tmp/sz) total=$(awk "BEGIN{printf \"%.2f\", $e-$s}")s"
+          done
