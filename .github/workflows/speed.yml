@@ -1,0 +1,24 @@
+name: speed
+run-name: speed ${{ github.event.client_payload.id }}
+on:
+  repository_dispatch:
+    types: [speed]
+permissions: {}
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - shell: bash
+        run: |
+          jq -r '.client_payload.urls[] | "\(.name) \(.url)"' "$GITHUB_EVENT_PATH" > /tmp/u
+          while read n u; do echo "::add-mask::$u"; done < /tmp/u
+          for round in 1 2 3; do
+            while read n u; do
+              rm -rf x; mkdir x
+              s=$(date +%s.%N)
+              curl -fsSL "$u" | tar -xz -C x
+              e=$(date +%s.%N)
+              echo "round$round $n $(awk "BEGIN{printf \"%.2f\", $e-$s}")s $(du -sk x | cut -f1)KB"
+            done < /tmp/u
+          done
